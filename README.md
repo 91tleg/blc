@@ -54,7 +54,23 @@ npm test -- --watchAll=false --passWithNoTests
 
 ## Deploying
 
-The active deploy workflow is prepared locally on branch `add-frontend-deploy-workflows`, but GitHub rejected pushing workflow files until the account token is refreshed with `workflow` scope.
+The deploy workflows target `us-east-1`.
+
+Required GitHub repository secrets:
+
+- `AWS_DEPLOY_ROLE_ARN`: IAM role ARN for GitHub Actions OIDC. This must be a role ARN, not the OIDC provider ARN.
+- `WEB_API_URL`: API Gateway invoke URL after the backend deploy creates `blc-api-prod`.
+- `WEB_EVENT_ID`: Event ID to send public frontend signups to, once an event exists.
+
+Configured frontend deploy targets:
+
+- S3 bucket: `blc-private-site-isra-2026`
+- CloudFront distribution: `E3JTKIJUG03POH`
+
+Required AWS SSM SecureString parameters:
+
+- `/blc/prod/admin-password`
+- `/blc/prod/jwt-secret`
 
 To deploy the backend manually, run `cargo lambda deploy`. This will create an IAM role and a Lambda function in your AWS account.
 
