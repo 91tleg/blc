@@ -35,21 +35,25 @@ async fn main() -> Result<(), Error> {
         .with_current_span(false)
         .init();
 
-    // All values are injected by SAM / CloudFormation at deploy time.
-    // Panic at cold start if any are missing — better to fail fast than to
-    // serve requests with a broken config.
+    // Non-secret infrastructure values are injected by SAM / CloudFormation.
+    // Secrets are loaded from SSM SecureString parameters during cold start.
 
     let events_table = require_env("EVENTS_TABLE");
     let registrations_table = require_env("REGISTRATIONS_TABLE");
     let registrations_email_gsi = require_env("REGISTRATIONS_EMAIL_GSI");
     let posters_bucket = require_env("POSTERS_BUCKET");
     let posters_public_base_url = require_env("POSTERS_PUBLIC_BASE_URL");
-    let admin_password = require_env("ADMIN_PASSWORD");
-    let jwt_secret = require_env("JWT_SECRET");
+    let admin_password_param = require_env("ADMIN_PASSWORD_PARAM");
+    let jwt_secret_param = require_env("JWT_SECRET_PARAM");
 
     let aws_config = aws_config::load_defaults(BehaviorVersion::latest()).await;
+    let ssm_client = aws_sdk_ssm::Client::new(&aws_config);
     let dynamo_client = aws_sdk_dynamodb::Client::new(&aws_config);
     let s3_client = aws_sdk_s3::Client::new(&aws_config);
+    let (admin_password, jwt_secret) = tokio::try_join!(
+        load_secure_parameter(&ssm_client, &admin_password_param),
+        load_secure_parameter(&ssm_client, &jwt_secret_param),
+    )?;
 
     let state = Arc::new(AppState {
         events_repo: DynamoEventsRepo::new(dynamo_client.clone(), &events_table),
@@ -91,4 +95,32 @@ async fn main() -> Result<(), Error> {
 /// not a recoverable runtime condition.
 fn require_env(key: &str) -> String {
     std::env::var(key).unwrap_or_else(|_| panic!("required environment variable {key} is not set"))
+}
+
+async fn load_secure_parameter(
+    client: &aws_sdk_ssm::Client,
+    name: &str,
+) -> Result<String, Error> {
+    let output = client
+        .get_parameter()
+        .name(name)
+        .with_decryption(true)
+        .send()
+        .await?;
+
+    let parameter = output.parameter().ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            format!("SSM parameter {name} was not returned"),
+        )
+    })?;
+
+    let value = parameter.value().ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            format!("SSM parameter {name} did not contain a value"),
+        )
+    })?;
+
+    Ok(value.to_owned())
 }
