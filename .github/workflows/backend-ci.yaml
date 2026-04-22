@@ -1,9 +1,14 @@
-name: CI
+name: Backend CI
 
 on:
   push:
     branches: [ main ]
+    paths:
+      - 'api/**'
+      - '.github/workflows/backend-ci.yaml'
   pull_request:
+    paths:
+      - 'api/**'
 
 env:
   RUST_BACKTRACE: 1
@@ -18,8 +23,12 @@ jobs:
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: api
       - run: cargo fmt -- --check
+        working-directory: api
       - run: cargo clippy -- -D warnings
+        working-directory: api
 
   build:
     name: Build
@@ -28,7 +37,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: api
       - run: cargo build --release --verbose
+        working-directory: api
 
   test:
     name: Test
@@ -37,4 +49,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: api
       - run: cargo test --verbose
+        working-directory: api

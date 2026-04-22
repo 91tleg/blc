@@ -1,0 +1,28 @@
+# SAM CLI configuration — stores deploy defaults so only need to run:
+#   sam build && sam deploy
+#
+# First-time setup:
+#   1. Create secrets in SSM (only needed once):
+#        aws ssm put-parameter --name /blc/prod/admin-password \
+#          --value "your-password" --type SecureString
+#        aws ssm put-parameter --name /blc/prod/jwt-secret \
+#          --value "$(openssl rand -hex 32)" --type SecureString
+#
+#   2. sam build
+#   3. sam deploy
+
+version = 0.1
+
+[default.global.parameters]
+stack_name = "blc-prod"
+
+[default.build.parameters]
+cached = true
+parallel = true
+
+[default.deploy.parameters]
+stack_name       = "blc-prod"
+region           = "us-west-2"
+capabilities     = "CAPABILITY_IAM"
+confirm_changeset = true
+resolve_s3       = true

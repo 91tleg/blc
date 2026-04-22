@@ -1,0 +1,232 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+
+Description: BLC
+
+Parameters:
+  AdminPassword:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /blc/prod/admin-password
+    Description: Global admin password (stored in SSM SecureString)
+
+  JwtSecret:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /blc/prod/jwt-secret
+    Description: HMAC secret for JWT signing (stored in SSM SecureString)
+
+Globals:
+  Function:
+    Runtime: provided.al2023   # Amazon Linux 2023 required for Rust runtimes
+    Architectures:
+      - arm64
+    MemorySize: 128
+    Timeout: 10
+    Environment:
+      Variables:
+        EVENTS_TABLE: !Ref EventsTable
+        REGISTRATIONS_TABLE: !Ref RegistrationsTable
+        REGISTRATIONS_EMAIL_GSI: email-lookup
+        POSTERS_BUCKET: !Ref PostersBucket
+        POSTERS_PUBLIC_BASE_URL: !Sub "https://${PostersBucket}.s3.${AWS::Region}.amazonaws.com"
+        ADMIN_PASSWORD: !Ref AdminPassword
+        JWT_SECRET: !Ref JwtSecret
+        RUST_LOG: "warn"
+    LoggingConfig:
+      LogFormat: JSON
+
+Resources:
+
+  BlcApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: blc-api-prod
+      StageName: prod
+      TracingEnabled: true
+      Cors:
+        AllowMethods: "'GET,POST,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type,Authorization'"
+        AllowOrigin: "'*'"     # Change to frontend domain!!!
+      Auth:
+        DefaultAuthorizer: NONE
+
+  BlcFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: rust-cargolambda
+    Properties:
+      FunctionName: blc-prod
+      CodeUri: ./
+      Handler: bootstrap
+      Description: BLC event management and registration API
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref EventsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RegistrationsTable
+        - S3CrudPolicy:
+            BucketName: !Ref PostersBucket
+      Events:
+        # Auth
+        AdminLogin:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BlcApi
+            Path: /auth/login
+            Method: POST
+
+        # Events — public
+        ListEvents:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BlcApi
+            Path: /events
+            Method: GET
+
+        GetEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BlcApi
+            Path: /events/{event_id}
+            Method: GET
+
+        # Events — admin
+        CreateEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BlcApi
+            Path: /events
+            Method: POST
+
+        GetPosterUploadUrl:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BlcApi
+            Path: /events/poster-upload-url
+            Method: GET
+
+        # Registrations — public
+        RegisterForEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BlcApi
+            Path: /events/{event_id}/registrations
+            Method: POST
+
+        # Registrations — admin
+        ListRegistrations:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BlcApi
+            Path: /events/{event_id}/registrations
+            Method: GET
+
+  EventsTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: blc-events-prod
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+
+  RegistrationsTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: blc-registrations-prod
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+        - AttributeName: gsi_sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: email-lookup
+          KeySchema:
+            - AttributeName: pk
+              KeyType: HASH
+            - AttributeName: gsi_sk
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  PostersBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "blc-posters-prod-${AWS::AccountId}"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins:
+              - "*"            # Change to frontend domain!!!
+            AllowedMethods:
+              - PUT
+              - GET
+            AllowedHeaders:
+              - "*"
+            MaxAge: 3600
+
+  PostersBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref PostersBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: PublicReadPosters
+            Effect: Allow
+            Principal: "*"
+            Action: s3:GetObject
+            Resource: !Sub "arn:aws:s3:::${PostersBucket}/*"
+
+  BlcFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${BlcFunction}"
+      RetentionInDays: 30
+
+Outputs:
+  ApiBaseUrl:
+    Description: API Gateway base URL
+    Value: !Sub "https://${BlcApi}.execute-api.${AWS::Region}.amazonaws.com/prod"
+
+  BlcFunctionArn:
+    Description: Lambda function ARN
+    Value: !GetAtt BlcFunction.Arn
+
+  EventsTableName:
+    Description: DynamoDB events table name
+    Value: !Ref EventsTable
+
+  RegistrationsTableName:
+    Description: DynamoDB registrations table name
+    Value: !Ref RegistrationsTable
+
+  PostersBucketName:
+    Description: S3 posters bucket name
+    Value: !Ref PostersBucket
