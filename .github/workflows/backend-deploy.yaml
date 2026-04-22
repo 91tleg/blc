@@ -48,6 +48,7 @@ jobs:
           channel: stable
           targets: aarch64-unknown-linux-musl
           bins: cargo-lambda
+          cache: false
 
       - name: Cache cargo registry and build
         uses: Swatinem/rust-cache@v2
