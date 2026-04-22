@@ -53,7 +53,7 @@ jobs:
           workspaces: api
 
       - name: Install cargo-lambda
-        uses: cargo-lambda/setup-cargo-lambda@v1
+        run: cargo install cargo-lambda
 
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
