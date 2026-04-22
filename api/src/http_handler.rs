@@ -64,7 +64,10 @@ fn not_found() -> HttpResponse {
         .status(404)
         .header("Content-Type", "application/json")
         .header("Access-Control-Allow-Origin", "*")
-        .header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        .header(
+            "Access-Control-Allow-Headers",
+            "Content-Type, Authorization",
+        )
         .header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         .body(Body::Text(body))
         .expect("response build failed")

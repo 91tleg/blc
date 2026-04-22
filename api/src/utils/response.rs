@@ -18,7 +18,10 @@ pub fn cors_preflight() -> HttpResponse {
     Response::builder()
         .status(204)
         .header("Access-Control-Allow-Origin", "*")
-        .header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        .header(
+            "Access-Control-Allow-Headers",
+            "Content-Type, Authorization",
+        )
         .header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         .body(Body::Empty)
         .expect("failed to build response")
@@ -30,7 +33,10 @@ fn json_response(status: u16, body: impl Serialize) -> HttpResponse {
         .status(status)
         .header("Content-Type", "application/json")
         .header("Access-Control-Allow-Origin", "*")
-        .header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        .header(
+            "Access-Control-Allow-Headers",
+            "Content-Type, Authorization",
+        )
         .header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         .body(Body::Text(json))
         .expect("failed to build response")
