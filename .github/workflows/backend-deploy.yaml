@@ -42,18 +42,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install Rust toolchain with Cargo Lambda
+        uses: moonrepo/setup-rust@v1
         with:
+          channel: stable
           targets: aarch64-unknown-linux-musl
+          bins: cargo-lambda
 
       - name: Cache cargo registry and build
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: api
-
-      - name: Install cargo-lambda
-        uses: cargo-lambda/setup-cargo-lambda@v1
 
       - name: Install Zig
         uses: mlugg/setup-zig@v2
