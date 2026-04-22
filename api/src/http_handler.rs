@@ -24,6 +24,11 @@ pub async fn dispatch(
     }
 
     let path = path.trim_end_matches('/');
+    let path = path
+        .strip_prefix("/prod")
+        .filter(|suffix| suffix.is_empty() || suffix.starts_with('/'))
+        .unwrap_or(path);
+    let path = if path.is_empty() { "/" } else { path };
 
     match (method, path) {
         ("POST", "/auth/login") => handlers::admin_login::handle(req, auth).await,
