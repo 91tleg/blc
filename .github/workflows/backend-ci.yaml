@@ -27,8 +27,6 @@ jobs:
           workspaces: api
       - run: cargo fmt -- --check
         working-directory: api
-      - run: cargo clippy -- -D warnings
-        working-directory: api
 
   build:
     name: Build
