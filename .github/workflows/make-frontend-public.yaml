@@ -23,6 +23,31 @@ jobs:
           set -euo pipefail
 
           distribution_id="E3JTKIJUG03POH"
+          web_bucket="blc-private-site-isra-2026"
+
+          aws s3api put-public-access-block \
+            --bucket "$web_bucket" \
+            --public-access-block-configuration \
+              BlockPublicAcls=false,IgnorePublicAcls=false,BlockPublicPolicy=false,RestrictPublicBuckets=false
+
+          cat > web-bucket-policy.json <<'JSON'
+          {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Sid": "PublicReadStaticSite",
+                "Effect": "Allow",
+                "Principal": "*",
+                "Action": "s3:GetObject",
+                "Resource": "arn:aws:s3:::blc-private-site-isra-2026/*"
+              }
+            ]
+          }
+          JSON
+
+          aws s3api put-bucket-policy \
+            --bucket "$web_bucket" \
+            --policy file://web-bucket-policy.json
 
           aws cloudfront get-distribution-config \
             --id "$distribution_id" \
@@ -32,6 +57,7 @@ jobs:
 
           jq '
             .DistributionConfig
+            | .DefaultRootObject = "index.html"
             | .DefaultCacheBehavior.FunctionAssociations = {"Quantity": 0}
             | .DefaultCacheBehavior.LambdaFunctionAssociations = {"Quantity": 0}
             | if .CacheBehaviors.Quantity > 0 then
