@@ -53,7 +53,7 @@ jobs:
           workspaces: api
 
       - name: Install cargo-lambda
-        run: cargo install cargo-lambda
+        uses: cargo-lambda/setup-cargo-lambda@v1
 
       - name: Install Zig
         uses: mlugg/setup-zig@v2
