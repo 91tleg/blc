@@ -1,0 +1,56 @@
+name: Make Frontend Public
+
+on:
+  workflow_dispatch:
+
+jobs:
+  make-public:
+    name: Remove CloudFront Password Gate
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::317380566415:role/blc-github-deploy-role
+          aws-region: us-east-1
+
+      - name: Remove viewer auth functions
+        run: |
+          set -euo pipefail
+
+          distribution_id="E3JTKIJUG03POH"
+
+          aws cloudfront get-distribution-config \
+            --id "$distribution_id" \
+            > distribution.json
+
+          etag="$(jq -r '.ETag' distribution.json)"
+
+          jq '
+            .DistributionConfig
+            | .DefaultCacheBehavior.FunctionAssociations = {"Quantity": 0}
+            | .DefaultCacheBehavior.LambdaFunctionAssociations = {"Quantity": 0}
+            | if .CacheBehaviors.Quantity > 0 then
+                .CacheBehaviors.Items |= map(
+                  .FunctionAssociations = {"Quantity": 0}
+                  | .LambdaFunctionAssociations = {"Quantity": 0}
+                )
+              else
+                .
+              end
+          ' distribution.json > public-distribution.json
+
+          aws cloudfront update-distribution \
+            --id "$distribution_id" \
+            --if-match "$etag" \
+            --distribution-config file://public-distribution.json
+
+          aws cloudfront wait distribution-deployed --id "$distribution_id"
+
+          aws cloudfront create-invalidation \
+            --distribution-id "$distribution_id" \
+            --paths "/*"
