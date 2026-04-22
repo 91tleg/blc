@@ -14,11 +14,24 @@ pub fn created(body: impl Serialize) -> HttpResponse {
     json_response(201, body)
 }
 
+pub fn cors_preflight() -> HttpResponse {
+    Response::builder()
+        .status(204)
+        .header("Access-Control-Allow-Origin", "*")
+        .header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        .header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        .body(Body::Empty)
+        .expect("failed to build response")
+}
+
 fn json_response(status: u16, body: impl Serialize) -> HttpResponse {
     let json = serde_json::to_string(&body).unwrap_or_else(|_| "{}".into());
     Response::builder()
         .status(status)
         .header("Content-Type", "application/json")
+        .header("Access-Control-Allow-Origin", "*")
+        .header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        .header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         .body(Body::Text(json))
         .expect("failed to build response")
 }

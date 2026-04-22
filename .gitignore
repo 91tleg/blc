@@ -1,2 +1,18 @@
 target
 .aws-sam
+
+# Frontend
+web/node_modules/
+web/build/
+web/dist/
+web/.env
+web/.env.local
+web/.env.development.local
+web/.env.test.local
+web/.env.production.local
+
+# Logs and editor files
+*.log
+.DS_Store
+.vscode/
+.idea/
