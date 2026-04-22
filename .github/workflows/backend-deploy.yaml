@@ -75,6 +75,10 @@ jobs:
       - name: SAM deploy
         run: |
           sam deploy \
+            --stack-name blc-prod \
+            --region us-east-1 \
+            --capabilities CAPABILITY_IAM \
+            --resolve-s3 \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset
         working-directory: api
