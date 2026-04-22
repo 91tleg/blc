@@ -3,7 +3,7 @@ use lambda_http::{Body, Request, Response};
 use crate::application::ports::{EventsRepo, RegistrationsRepo};
 use crate::application::services::{AuthService, Clock, PosterStorage};
 use crate::handlers;
-use crate::utils::response::HttpResponse;
+use crate::utils::response::{cors_preflight, HttpResponse};
 
 /// Central dispatcher. Matches (method, path pattern) and delegates to the
 /// appropriate handler. All dependency injection happens in main.rs — this
@@ -18,6 +18,10 @@ pub async fn dispatch(
 ) -> HttpResponse {
     let method = req.method().as_str();
     let path = req.uri().path();
+
+    if method == "OPTIONS" {
+        return cors_preflight();
+    }
 
     let path = path.trim_end_matches('/');
 
@@ -59,6 +63,9 @@ fn not_found() -> HttpResponse {
     Response::builder()
         .status(404)
         .header("Content-Type", "application/json")
+        .header("Access-Control-Allow-Origin", "*")
+        .header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        .header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         .body(Body::Text(body))
         .expect("response build failed")
 }
