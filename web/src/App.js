@@ -89,9 +89,16 @@ function App() {
     }
 
     let cancelled = false;
+    const localRecords = records;
+    const localPostersByDate = eventPostersByDate;
 
     const loadBackendState = async () => {
       try {
+        const migrationHadErrors = await migrateLocalStateToBackend(
+          localRecords,
+          localPostersByDate
+        );
+
         const [event, backendRegistrations, backendPosters] = await Promise.all([
           getConfiguredEvent(),
           listRegistrations(),
@@ -117,7 +124,9 @@ function App() {
           }));
         }
 
-        setPosterStorageError('');
+        setPosterStorageError(migrationHadErrors
+          ? 'Some saved local items could not sync. Try uploading them again.'
+          : '');
       } catch (error) {
         setPosterStorageError(error.message || 'Unable to load backend event data.');
       }
@@ -141,6 +150,39 @@ function App() {
       firstName: parts[0],
       lastName: parts.slice(1).join(' ') || 'N/A'
     };
+  };
+
+  const cleanRecordValue = (value) => {
+    return value && value !== 'N/A' ? value : '';
+  };
+
+  const migrateLocalStateToBackend = async (localRecords, localPostersByDate) => {
+    const recordJobs = (localRecords || [])
+      .filter(record => {
+        const id = String(record.id || '');
+        return !id.startsWith('reg_') && cleanRecordValue(record.email);
+      })
+      .map(record => registerForEvent({
+        firstName: cleanRecordValue(record.firstName),
+        lastName: cleanRecordValue(record.lastName),
+        email: cleanRecordValue(record.email),
+        phone: cleanRecordValue(record.phone)
+      }).catch(error => {
+        if ((error.message || '').toLowerCase().includes('already registered')) {
+          return null;
+        }
+
+        throw error;
+      }));
+
+    const posterJobs = Object.entries(localPostersByDate || {}).flatMap(([dateKey, posters]) => (
+      (posters || [])
+        .filter(poster => poster?.dataUrl && !poster?.url)
+        .map(poster => uploadEventPoster({ ...poster, dateKey }))
+    ));
+
+    const results = await Promise.allSettled([...recordJobs, ...posterJobs]);
+    return results.some(result => result.status === 'rejected');
   };
 
   const registrationToRecord = (registration, eventDate) => {

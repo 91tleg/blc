@@ -158,6 +158,7 @@ impl RegistrationsRepo for DynamoRegistrationsRepo {
             .key_condition_expression("pk = :pk AND begins_with(sk, :prefix)")
             .expression_attribute_values(":pk", s(&registration_pk(event_id)))
             .expression_attribute_values(":prefix", s("REG#"))
+            .consistent_read(true)
             .limit(limit as i32);
 
         if let Some(c) = cursor {

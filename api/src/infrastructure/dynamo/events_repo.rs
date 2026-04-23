@@ -199,6 +199,7 @@ impl EventsRepo for DynamoEventsRepo {
             .key_condition_expression("pk = :pk AND begins_with(sk, :prefix)")
             .expression_attribute_values(":pk", s(&event_pk(event_id)))
             .expression_attribute_values(":prefix", s(POSTER_SK_PREFIX))
+            .consistent_read(true)
             .send()
             .await
             .map_err(|e| AppError::StorageError(format!("failed to list posters: {e:?}")))?;
