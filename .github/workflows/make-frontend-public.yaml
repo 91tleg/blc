@@ -58,6 +58,7 @@ jobs:
           jq '
             .DistributionConfig
             | .DefaultRootObject = "index.html"
+            | .Origins.Items |= map(.OriginPath = "")
             | .DefaultCacheBehavior.FunctionAssociations = {"Quantity": 0}
             | .DefaultCacheBehavior.LambdaFunctionAssociations = {"Quantity": 0}
             | if .CacheBehaviors.Quantity > 0 then
@@ -77,6 +78,14 @@ jobs:
 
           aws cloudfront wait distribution-deployed --id "$distribution_id"
 
-          aws cloudfront create-invalidation \
+          invalidation_id="$(
+            aws cloudfront create-invalidation \
+              --distribution-id "$distribution_id" \
+              --paths "/*" \
+              --query 'Invalidation.Id' \
+              --output text
+          )"
+
+          aws cloudfront wait invalidation-completed \
             --distribution-id "$distribution_id" \
-            --paths "/*"
+            --id "$invalidation_id"
