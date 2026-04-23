@@ -14,6 +14,7 @@ pub struct RegisterForEventInput {
     pub full_name: String,
     pub email: String,
     pub phone_number: Option<String>,
+    pub date_key: Option<String>,
 }
 
 pub async fn register_for_event(
@@ -28,6 +29,7 @@ pub async fn register_for_event(
         input.full_name,
         input.email.clone(),
         input.phone_number,
+        input.date_key,
         clock.now(),
     );
     registration.validate()?;

@@ -10,6 +10,7 @@ pub struct Registration {
     pub full_name: String,
     pub email: String,
     pub phone_number: Option<String>,
+    pub date_key: Option<String>,
     pub registered_at: DateTime<Utc>,
 }
 
@@ -20,6 +21,7 @@ impl Registration {
         full_name: String,
         email: String,
         phone_number: Option<String>,
+        date_key: Option<String>,
         registered_at: DateTime<Utc>,
     ) -> Self {
         Self {
@@ -28,6 +30,7 @@ impl Registration {
             full_name,
             email,
             phone_number,
+            date_key,
             registered_at,
         }
     }

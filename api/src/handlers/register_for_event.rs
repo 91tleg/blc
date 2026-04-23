@@ -19,6 +19,7 @@ struct Body {
     full_name: String,
     email: String,
     phone_number: Option<String>,
+    date_key: Option<String>,
 }
 
 pub async fn handle(
@@ -43,6 +44,7 @@ pub async fn handle(
         full_name: body.full_name,
         email: body.email,
         phone_number: body.phone_number,
+        date_key: normalize_date_key(body.date_key),
     };
 
     match register_for_event(events_repo, registrations_repo, clock, input).await {
@@ -52,8 +54,18 @@ pub async fn handle(
             "full_name":       reg.full_name,
             "email":           reg.email,
             "phone_number":    reg.phone_number,
+            "date_key":        reg.date_key,
             "registered_at":   reg.registered_at.to_rfc3339(),
         })),
         Err(e) => error_response(e),
     }
+}
+
+fn normalize_date_key(date_key: Option<String>) -> Option<String> {
+    date_key.filter(|value| {
+        value.len() == 10
+            && value.chars().enumerate().all(|(index, c)| {
+                matches!(index, 4 | 7) == (c == '-') && (c.is_ascii_digit() || c == '-')
+            })
+    })
 }

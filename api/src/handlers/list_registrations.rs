@@ -44,6 +44,7 @@ pub async fn handle(
                 "full_name":       r.full_name,
                 "email":           r.email,
                 "phone_number":    r.phone_number,
+                "date_key":        r.date_key,
                 "registered_at":   r.registered_at.to_rfc3339(),
             })).collect::<Vec<_>>(),
             "next_cursor": out.next_cursor,

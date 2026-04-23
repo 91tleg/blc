@@ -62,6 +62,15 @@ function App() {
     return getLocalMidnight(date).toLocaleDateString('en-US', options);
   }
 
+  function parseLocalDateKey(dateKey) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey || '')) {
+      return null;
+    }
+
+    const [year, month, day] = dateKey.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  }
+
   const getSelectedDateString = () => {
     return getLocalDateKey(selectedDate);
   };
@@ -164,7 +173,8 @@ function App() {
         firstName: cleanRecordValue(record.firstName),
         lastName: cleanRecordValue(record.lastName),
         email: cleanRecordValue(record.email),
-        phone: cleanRecordValue(record.phone)
+        phone: cleanRecordValue(record.phone),
+        dateKey: record.dateKey || getLocalDateKey(record.timestamp || new Date())
       }).catch(error => {
         if ((error.message || '').toLowerCase().includes('already registered')) {
           return null;
@@ -185,7 +195,7 @@ function App() {
 
   const registrationToRecord = (registration) => {
     const submittedAt = registration.registered_at || new Date().toISOString();
-    const recordDate = getLocalMidnight(submittedAt);
+    const recordDate = parseLocalDateKey(registration.date_key) || getLocalMidnight(submittedAt);
     const names = splitFullName(registration.full_name);
 
     return {
@@ -244,7 +254,8 @@ function App() {
 
   const handleSave = async (formData) => {
     const recordDate = getLocalMidnight(selectedDate);
-    const backendRegistration = await registerForEvent(formData);
+    const dateKey = getLocalDateKey(recordDate);
+    const backendRegistration = await registerForEvent({ ...formData, dateKey });
 
     setRotating(true);
     setTimeout(() => setRotating(false), 800);
@@ -256,7 +267,7 @@ function App() {
       phone: backendRegistration?.phone_number || formData.phone || 'N/A',
       email: backendRegistration?.email || formData.email || 'N/A',
       date: formatDisplayDate(recordDate),
-      dateKey: getLocalDateKey(recordDate),
+      dateKey: backendRegistration?.date_key || dateKey,
       timestamp: recordDate.toISOString(),
       submittedAt: backendRegistration?.registered_at || new Date().toISOString()
     };

@@ -15,6 +15,7 @@ use crate::infrastructure::dynamo::{
     encode_cursor,
     event_count_sk,
     get_s,
+    get_s_opt,
     n, // Added n
     parse_timestamp,
     registration_email_gsi_sk,
@@ -61,6 +62,10 @@ fn registration_to_item(reg: &Registration) -> HashMap<String, AttributeValue> {
         item.insert("phone_number".into(), s(phone));
     }
 
+    if let Some(date_key) = &reg.date_key {
+        item.insert("date_key".into(), s(date_key));
+    }
+
     item.insert("registered_at".into(), s(&reg.registered_at.to_rfc3339()));
     item
 }
@@ -77,6 +82,7 @@ fn item_to_registration(item: &HashMap<String, AttributeValue>) -> Result<Regist
         get_s(item, "full_name")?.to_owned(),
         get_s(item, "email")?.to_owned(),
         phone_number,
+        get_s_opt(item, "date_key")?,
         parse_timestamp(item, "registered_at")?,
     ))
 }

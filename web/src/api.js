@@ -107,7 +107,7 @@ export const deleteEventPoster = async (posterId) => {
   );
 };
 
-export const registerForEvent = async ({ firstName, lastName, email, phone }) => {
+export const registerForEvent = async ({ firstName, lastName, email, phone, dateKey }) => {
   if (!isBackendConfigured) {
     return null;
   }
@@ -121,6 +121,9 @@ export const registerForEvent = async ({ firstName, lastName, email, phone }) =>
   const normalizedPhone = (phone || '').replace(/\D/g, '');
   if (normalizedPhone) {
     body.phone_number = normalizedPhone;
+  }
+  if (dateKey) {
+    body.date_key = dateKey;
   }
 
   return requestJson(`/events/${encodeURIComponent(eventId)}/registrations`, {
