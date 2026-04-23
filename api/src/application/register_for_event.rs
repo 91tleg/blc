@@ -44,14 +44,6 @@ pub async fn register_for_event(
         return Err(AppError::EventFull);
     }
 
-    if registrations_repo
-        .find_by_event_and_email(&input.event_id, &registration.email)
-        .await?
-        .is_some()
-    {
-        return Err(AppError::AlreadyRegistered);
-    }
-
     registrations_repo.save(&registration).await?;
 
     Ok(registration)
