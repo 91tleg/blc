@@ -109,9 +109,7 @@ function App() {
           return;
         }
 
-        setRecords(backendRegistrations.map(registration => (
-          registrationToRecord(registration, event?.starts_at)
-        )));
+        setRecords(backendRegistrations.map(registrationToRecord));
         setEventPostersByDate(groupPostersByDate(backendPosters));
 
         if (event?.name) {
@@ -185,9 +183,9 @@ function App() {
     return results.some(result => result.status === 'rejected');
   };
 
-  const registrationToRecord = (registration, eventDate) => {
+  const registrationToRecord = (registration) => {
     const submittedAt = registration.registered_at || new Date().toISOString();
-    const recordDate = getLocalMidnight(eventDate || submittedAt);
+    const recordDate = getLocalMidnight(submittedAt);
     const names = splitFullName(registration.full_name);
 
     return {

@@ -48,10 +48,23 @@ export const listRegistrations = async () => {
     return [];
   }
 
-  const data = await requestJson(
-    `/events/${encodeURIComponent(eventId)}/registrations?limit=200`
-  );
-  return data?.registrations || [];
+  const registrations = [];
+  let cursor = '';
+
+  do {
+    const query = new URLSearchParams({ limit: '200' });
+    if (cursor) {
+      query.set('cursor', cursor);
+    }
+
+    const data = await requestJson(
+      `/events/${encodeURIComponent(eventId)}/registrations?${query.toString()}`
+    );
+    registrations.push(...(data?.registrations || []));
+    cursor = data?.next_cursor || '';
+  } while (cursor);
+
+  return registrations;
 };
 
 export const listEventPosters = async () => {
