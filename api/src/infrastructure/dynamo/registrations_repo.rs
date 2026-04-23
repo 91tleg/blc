@@ -13,6 +13,7 @@ use crate::domain::{
 use crate::infrastructure::dynamo::{
     decode_cursor,
     encode_cursor,
+    event_count_sk,
     get_s,
     n, // Added n
     parse_timestamp,
@@ -96,7 +97,7 @@ impl RegistrationsRepo for DynamoRegistrationsRepo {
                 "pk",
                 s(&format!("EVENT#{}", registration.event_id.as_str())),
             )
-            .key("sk", s("#COUNT"))
+            .key("sk", s(event_count_sk()))
             .update_expression("SET #c = #c + :one")
             .expression_attribute_names("#c", "count")
             .expression_attribute_values(":one", n(1u32))
@@ -113,7 +114,7 @@ impl RegistrationsRepo for DynamoRegistrationsRepo {
                 if e.to_string().contains("TransactionCanceledException") {
                     AppError::AlreadyRegistered
                 } else {
-                    AppError::StorageError(format!("Transaction failed: {}", e))
+                    AppError::StorageError(format!("Transaction failed: {e:?}"))
                 }
             })?;
 
