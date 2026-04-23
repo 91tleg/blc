@@ -1,5 +1,6 @@
 pub mod admin_login;
 pub mod create_event;
+pub mod event_posters;
 pub mod get_event;
 pub mod get_poster_upload_url;
 pub mod list_events;

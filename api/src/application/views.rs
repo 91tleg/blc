@@ -15,3 +15,13 @@ pub struct EventSummary {
     pub registered_count: u32,
     pub created_at: DateTime<Utc>,
 }
+
+#[derive(Debug, Clone)]
+pub struct PosterSummary {
+    pub id: String,
+    pub name: String,
+    pub url: String,
+    pub object_key: String,
+    pub date_key: String,
+    pub uploaded_at: DateTime<Utc>,
+}

@@ -79,7 +79,7 @@ const EventPosters = ({
 
     try {
       const nextPosters = await Promise.all(imageFiles.map(fileToPoster));
-      onComplete(nextPosters);
+      await onComplete(nextPosters);
     } catch {
       setError('That poster could not be uploaded. Try a JPG or PNG file.');
     } finally {
@@ -93,10 +93,21 @@ const EventPosters = ({
   };
 
   const handleReplaceFile = async (event, posterId) => {
-    await processFiles(event.target.files, ([poster]) => {
-      onReplacePoster(posterId, poster);
-    });
+    await processFiles(event.target.files, ([poster]) => onReplacePoster(posterId, poster));
     event.target.value = '';
+  };
+
+  const handleRemovePoster = async (posterId) => {
+    setIsProcessing(true);
+    setError('');
+
+    try {
+      await onRemovePoster(posterId);
+    } catch {
+      setError('That poster could not be removed. Try again.');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -138,7 +149,7 @@ const EventPosters = ({
         <div className="event-poster-grid">
           {posters.map(poster => (
             <article className="event-poster-card" key={poster.id}>
-              <img src={poster.dataUrl} alt={poster.name} />
+              <img src={poster.dataUrl || poster.url} alt={poster.name} />
               <div className="event-poster-actions">
                 <button
                   type="button"
@@ -151,7 +162,7 @@ const EventPosters = ({
                 <button
                   type="button"
                   className="btn-poster-remove"
-                  onClick={() => onRemovePoster(poster.id)}
+                  onClick={() => handleRemovePoster(poster.id)}
                   disabled={isProcessing}
                 >
                   Remove

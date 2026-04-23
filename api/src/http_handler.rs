@@ -1,8 +1,9 @@
 use lambda_http::{Body, Request, Response};
 
 use crate::application::ports::{EventsRepo, RegistrationsRepo};
-use crate::application::services::{AuthService, Clock, PosterStorage};
+use crate::application::services::{AuthService, Clock};
 use crate::handlers;
+use crate::infrastructure::s3::poster_storage::S3PosterStorage;
 use crate::utils::response::{cors_preflight, HttpResponse};
 
 /// Central dispatcher. Matches (method, path pattern) and delegates to the
@@ -13,7 +14,7 @@ pub async fn dispatch(
     events_repo: &dyn EventsRepo,
     registrations_repo: &dyn RegistrationsRepo,
     clock: &dyn Clock,
-    storage: &dyn PosterStorage,
+    storage: &S3PosterStorage,
     auth: &dyn AuthService,
 ) -> HttpResponse {
     let method = req.method().as_str();
@@ -39,6 +40,18 @@ pub async fn dispatch(
             handlers::get_poster_upload_url::handle(req, storage, auth).await
         }
 
+        ("GET", p) if p.ends_with("/posters") => {
+            handlers::event_posters::list(req, events_repo).await
+        }
+
+        ("POST", p) if p.ends_with("/posters") => {
+            handlers::event_posters::save(req, events_repo, storage).await
+        }
+
+        ("DELETE", p) if p.contains("/posters/") => {
+            handlers::event_posters::delete(req, events_repo, storage).await
+        }
+
         ("GET", p) if p.starts_with("/events/") && !p["/events/".len()..].contains('/') => {
             handlers::get_event::handle(req, events_repo).await
         }
@@ -52,7 +65,7 @@ pub async fn dispatch(
         }
 
         ("GET", p) if p.ends_with("/registrations") => {
-            handlers::list_registrations::handle(req, events_repo, registrations_repo, auth).await
+            handlers::list_registrations::handle(req, events_repo, registrations_repo).await
         }
 
         _ => not_found(),
@@ -73,7 +86,7 @@ fn not_found() -> HttpResponse {
             "Access-Control-Allow-Headers",
             "Content-Type, Authorization",
         )
-        .header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        .header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
         .body(Body::Text(body))
         .expect("response build failed")
 }

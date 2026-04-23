@@ -1,5 +1,5 @@
 use crate::application::errors::AppError;
-use crate::application::views::EventSummary;
+use crate::application::views::{EventSummary, PosterSummary};
 use crate::domain::{
     event::Event,
     registration::Registration,
@@ -21,6 +21,20 @@ pub trait EventsRepo: Send + Sync {
     ) -> Result<(Vec<EventSummary>, Option<String>), AppError>;
 
     async fn registered_count(&self, id: &EventId) -> Result<u32, AppError>;
+
+    async fn save_poster(
+        &self,
+        event_id: &EventId,
+        poster: &PosterSummary,
+    ) -> Result<(), AppError>;
+
+    async fn list_posters(&self, event_id: &EventId) -> Result<Vec<PosterSummary>, AppError>;
+
+    async fn delete_poster(
+        &self,
+        event_id: &EventId,
+        poster_id: &str,
+    ) -> Result<Option<String>, AppError>;
 }
 
 #[async_trait::async_trait]

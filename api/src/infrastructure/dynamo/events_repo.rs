@@ -7,11 +7,18 @@ use futures::future::join_all;
 use std::collections::HashMap;
 
 use crate::application::{errors::AppError, ports::EventsRepo, views::EventSummary};
+use crate::application::views::PosterSummary;
 use crate::domain::{event::Event, types::EventId};
 use crate::infrastructure::dynamo::{
     decode_cursor, encode_cursor, event_count_sk, event_data_sk, event_pk, get_n_u32, get_s,
     get_s_opt, n, parse_timestamp, s,
 };
+
+const POSTER_SK_PREFIX: &str = "POSTER#";
+
+fn poster_sk(poster_id: &str) -> String {
+    format!("{POSTER_SK_PREFIX}{poster_id}")
+}
 
 pub struct DynamoEventsRepo {
     pub client: Client,
@@ -167,6 +174,62 @@ impl EventsRepo for DynamoEventsRepo {
             Some(item) => get_n_u32(&item, "count"),
         }
     }
+
+    async fn save_poster(
+        &self,
+        event_id: &EventId,
+        poster: &PosterSummary,
+    ) -> Result<(), AppError> {
+        self.client
+            .put_item()
+            .table_name(&self.table_name)
+            .set_item(Some(poster_to_item(event_id, poster)))
+            .send()
+            .await
+            .map_err(|e| AppError::StorageError(format!("failed to save poster: {e:?}")))?;
+
+        Ok(())
+    }
+
+    async fn list_posters(&self, event_id: &EventId) -> Result<Vec<PosterSummary>, AppError> {
+        let resp = self
+            .client
+            .query()
+            .table_name(&self.table_name)
+            .key_condition_expression("pk = :pk AND begins_with(sk, :prefix)")
+            .expression_attribute_values(":pk", s(&event_pk(event_id)))
+            .expression_attribute_values(":prefix", s(POSTER_SK_PREFIX))
+            .send()
+            .await
+            .map_err(|e| AppError::StorageError(format!("failed to list posters: {e:?}")))?;
+
+        resp.items()
+            .iter()
+            .map(item_to_poster)
+            .collect::<Result<Vec<_>, _>>()
+    }
+
+    async fn delete_poster(
+        &self,
+        event_id: &EventId,
+        poster_id: &str,
+    ) -> Result<Option<String>, AppError> {
+        let resp = self
+            .client
+            .delete_item()
+            .table_name(&self.table_name)
+            .key("pk", s(&event_pk(event_id)))
+            .key("sk", s(&poster_sk(poster_id)))
+            .return_values(aws_sdk_dynamodb::types::ReturnValue::AllOld)
+            .send()
+            .await
+            .map_err(|e| AppError::StorageError(format!("failed to delete poster: {e:?}")))?;
+
+        match resp.attributes {
+            Some(item) => get_s(&item, "object_key").map(Some),
+            None => Ok(None),
+        }
+    }
 }
 
 fn event_to_item(event: &Event) -> HashMap<String, AttributeValue> {
@@ -189,6 +252,34 @@ fn event_to_item(event: &Event) -> HashMap<String, AttributeValue> {
         item.insert("poster_url".into(), s(url));
     }
     item
+}
+
+fn poster_to_item(event_id: &EventId, poster: &PosterSummary) -> HashMap<String, AttributeValue> {
+    let mut item = HashMap::new();
+    item.insert("pk".into(), s(&event_pk(event_id)));
+    item.insert("sk".into(), s(&poster_sk(&poster.id)));
+    item.insert("poster_id".into(), s(&poster.id));
+    item.insert("name".into(), s(&poster.name));
+    item.insert("url".into(), s(&poster.url));
+    item.insert("object_key".into(), s(&poster.object_key));
+    item.insert("date_key".into(), s(&poster.date_key));
+    item.insert("uploaded_at".into(), s(&poster.uploaded_at.to_rfc3339()));
+    item
+}
+
+fn item_to_poster(item: &HashMap<String, AttributeValue>) -> Result<PosterSummary, AppError> {
+    let uploaded_at = parse_timestamp(item, "uploaded_at")?;
+    let date_key = get_s_opt(item, "date_key")?
+        .unwrap_or_else(|| uploaded_at.format("%Y-%m-%d").to_string());
+
+    Ok(PosterSummary {
+        id: get_s(item, "poster_id")?,
+        name: get_s(item, "name")?,
+        url: get_s(item, "url")?,
+        object_key: get_s(item, "object_key")?,
+        date_key,
+        uploaded_at,
+    })
 }
 
 fn item_to_event(item: &HashMap<String, AttributeValue>) -> Result<Event, AppError> {

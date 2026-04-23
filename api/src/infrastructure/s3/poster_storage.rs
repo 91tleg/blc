@@ -1,4 +1,4 @@
-use aws_sdk_s3::{presigning::PresigningConfig, Client};
+use aws_sdk_s3::{presigning::PresigningConfig, primitives::ByteStream, Client};
 use std::time::Duration;
 
 use crate::application::{errors::AppError, services::PosterStorage};
@@ -20,6 +20,37 @@ impl S3PosterStorage {
             bucket: bucket.into(),
             public_base_url: public_base_url.into(),
         }
+    }
+
+    pub async fn put_object(
+        &self,
+        key: &str,
+        content_type: &str,
+        bytes: Vec<u8>,
+    ) -> Result<String, AppError> {
+        self.client
+            .put_object()
+            .bucket(&self.bucket)
+            .key(key)
+            .content_type(content_type)
+            .body(ByteStream::from(bytes))
+            .send()
+            .await
+            .map_err(|e| AppError::StorageError(format!("poster upload error: {e:?}")))?;
+
+        Ok(self.public_url(key))
+    }
+
+    pub async fn delete_object(&self, key: &str) -> Result<(), AppError> {
+        self.client
+            .delete_object()
+            .bucket(&self.bucket)
+            .key(key)
+            .send()
+            .await
+            .map_err(|e| AppError::StorageError(format!("poster delete error: {e:?}")))?;
+
+        Ok(())
     }
 }
 

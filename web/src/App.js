@@ -5,7 +5,15 @@ import RecordsTable from './components/RecordsTable';
 import Calendar from './components/Calendar';
 import EventPosters from './components/EventPosters';
 import * as XLSX from 'xlsx';
-import { isBackendConfigured, registerForEvent } from './api';
+import {
+  deleteEventPoster,
+  getConfiguredEvent,
+  isBackendConfigured,
+  listEventPosters,
+  listRegistrations,
+  registerForEvent,
+  uploadEventPoster
+} from './api';
 
 function App() {
   const [records, setRecords] = useState(() => {
@@ -75,6 +83,106 @@ function App() {
     localStorage.setItem('blcEventNames', JSON.stringify(eventNamesByDate));
   }, [eventNamesByDate]);
 
+  useEffect(() => {
+    if (!isBackendConfigured) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadBackendState = async () => {
+      try {
+        const [event, backendRegistrations, backendPosters] = await Promise.all([
+          getConfiguredEvent(),
+          listRegistrations(),
+          listEventPosters()
+        ]);
+
+        if (cancelled) {
+          return;
+        }
+
+        setRecords(backendRegistrations.map(registration => (
+          registrationToRecord(registration, event?.starts_at)
+        )));
+        setEventPostersByDate(groupPostersByDate(backendPosters));
+
+        if (event?.name) {
+          const eventDateKey = event.starts_at
+            ? getLocalDateKey(event.starts_at)
+            : getSelectedDateString();
+          setEventNamesByDate(prev => ({
+            ...prev,
+            [eventDateKey]: prev[eventDateKey] || event.name
+          }));
+        }
+
+        setPosterStorageError('');
+      } catch (error) {
+        setPosterStorageError(error.message || 'Unable to load backend event data.');
+      }
+    };
+
+    loadBackendState();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const splitFullName = (fullName) => {
+    const parts = (fullName || '').trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) {
+      return { firstName: 'N/A', lastName: 'N/A' };
+    }
+
+    return {
+      firstName: parts[0],
+      lastName: parts.slice(1).join(' ') || 'N/A'
+    };
+  };
+
+  const registrationToRecord = (registration, eventDate) => {
+    const submittedAt = registration.registered_at || new Date().toISOString();
+    const recordDate = getLocalMidnight(eventDate || submittedAt);
+    const names = splitFullName(registration.full_name);
+
+    return {
+      id: registration.registration_id,
+      firstName: names.firstName,
+      lastName: names.lastName,
+      phone: registration.phone_number || 'N/A',
+      email: registration.email || 'N/A',
+      date: formatDisplayDate(recordDate),
+      dateKey: getLocalDateKey(recordDate),
+      timestamp: recordDate.toISOString(),
+      submittedAt
+    };
+  };
+
+  const backendPosterToView = (poster) => {
+    const uploadedAt = poster.uploaded_at || new Date().toISOString();
+    return {
+      id: poster.poster_id || poster.id,
+      name: poster.name,
+      url: poster.url,
+      dateKey: poster.date_key,
+      uploadedAt
+    };
+  };
+
+  const groupPostersByDate = (posters) => {
+    return (posters || []).reduce((grouped, poster) => {
+      const viewPoster = backendPosterToView(poster);
+      const dateKey = viewPoster.dateKey || getLocalDateKey(viewPoster.uploadedAt);
+      return {
+        ...grouped,
+        [dateKey]: [...(grouped[dateKey] || []), viewPoster]
+      };
+    }, {});
+  };
+
   const getRecordsByDate = (date) => {
     const dateKey = getLocalDateKey(date);
     return records.filter(record => {
@@ -117,11 +225,18 @@ function App() {
     return newRecord;
   };
 
-  const handleAddPosters = (posters) => {
+  const handleAddPosters = async (posters) => {
     const dateKey = getSelectedDateString();
+    const savedPosters = isBackendConfigured
+      ? await Promise.all(posters.map(poster => uploadEventPoster({ ...poster, dateKey })))
+      : posters;
+    const viewPosters = savedPosters.map(poster => (
+      poster?.poster_id ? backendPosterToView(poster) : poster
+    ));
+
     setEventPostersByDate(prev => ({
       ...prev,
-      [dateKey]: [...(prev[dateKey] || []), ...posters]
+      [dateKey]: [...(prev[dateKey] || []), ...viewPosters]
     }));
   };
 
@@ -143,20 +258,32 @@ function App() {
     });
   };
 
-  const handleReplacePoster = (posterId, poster) => {
+  const handleReplacePoster = async (posterId, poster) => {
     const dateKey = getSelectedDateString();
+    if (isBackendConfigured) {
+      await deleteEventPoster(posterId);
+    }
+
+    const savedPoster = isBackendConfigured
+      ? backendPosterToView(await uploadEventPoster({ ...poster, dateKey }))
+      : { ...poster, id: posterId, uploadedAt: new Date().toISOString() };
+
     setEventPostersByDate(prev => ({
       ...prev,
       [dateKey]: (prev[dateKey] || []).map(existingPoster => (
         existingPoster.id === posterId
-          ? { ...poster, id: posterId, uploadedAt: new Date().toISOString() }
+          ? savedPoster
           : existingPoster
       ))
     }));
   };
 
-  const handleRemovePoster = (posterId) => {
+  const handleRemovePoster = async (posterId) => {
     const dateKey = getSelectedDateString();
+    if (isBackendConfigured) {
+      await deleteEventPoster(posterId);
+    }
+
     setEventPostersByDate(prev => {
       const nextPosters = (prev[dateKey] || []).filter(poster => poster.id !== posterId);
       if (nextPosters.length > 0) {

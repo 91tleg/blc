@@ -4,11 +4,9 @@ use serde_json::json;
 use crate::application::{
     list_registrations::{list_registrations, ListRegistrationsInput},
     ports::{EventsRepo, RegistrationsRepo},
-    services::AuthService,
 };
 use crate::domain::types::EventId;
 use crate::utils::{
-    auth_guard::require_admin,
     parse::{path_param, query_param},
     response::{error_response, ok, HttpResponse},
 };
@@ -20,12 +18,7 @@ pub async fn handle(
     req: Request,
     events_repo: &dyn EventsRepo,
     registrations_repo: &dyn RegistrationsRepo,
-    auth: &dyn AuthService,
 ) -> HttpResponse {
-    if let Err(resp) = require_admin(&req, auth) {
-        return resp;
-    }
-
     let event_id = match path_param(&req, "event_id") {
         Ok(id) => EventId::new(id),
         Err(resp) => return resp,

@@ -124,6 +124,27 @@ Resources:
             Path: /events/{event_id}/registrations
             Method: GET
 
+        ListEventPosters:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BlcApi
+            Path: /events/{event_id}/posters
+            Method: GET
+
+        SaveEventPoster:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BlcApi
+            Path: /events/{event_id}/posters
+            Method: POST
+
+        DeleteEventPoster:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BlcApi
+            Path: /events/{event_id}/posters/{poster_id}
+            Method: DELETE
+
   EventsTable:
     Type: AWS::DynamoDB::Table
     DeletionPolicy: Retain
