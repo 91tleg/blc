@@ -31,8 +31,9 @@ export const registerForEvent = async ({ firstName, lastName, email, phone }) =>
     email
   };
 
-  if (phone) {
-    body.phone_number = phone;
+  const normalizedPhone = (phone || '').replace(/\D/g, '');
+  if (normalizedPhone) {
+    body.phone_number = normalizedPhone;
   }
 
   const response = await fetch(
