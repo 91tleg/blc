@@ -697,6 +697,16 @@ body {
   display: none;
 }
 
+.autofill-decoy {
+  position: fixed;
+  left: -10000px;
+  top: -10000px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .event-posters-error {
   margin-bottom: 16px;
   padding: 12px 14px;

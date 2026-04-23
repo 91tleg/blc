@@ -29,8 +29,19 @@ const SignupForm = ({ onSave, isRotating, selectedDateLabel, backendEnabled = fa
     { code: '+64', country: 'New Zealand' }
   ];
 
+  const antiAutofillProps = {
+    autoComplete: 'new-password',
+    autoCorrect: 'off',
+    autoCapitalize: 'none',
+    spellCheck: false,
+    'data-lpignore': 'true',
+    'data-1p-ignore': 'true',
+    'data-form-type': 'other'
+  };
+
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { value } = e.target;
+    const name = e.target.dataset.field || e.target.name;
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -163,7 +174,29 @@ const SignupForm = ({ onSave, isRotating, selectedDateLabel, backendEnabled = fa
 
       {/* RIGHT FORM CONTENT */}
       <div className={`form-content ${isRotating ? 'rotating' : ''}`}>
-        <form onSubmit={handleSave}>
+        <form
+          onSubmit={handleSave}
+          autoComplete="off"
+          data-lpignore="true"
+          data-1p-ignore="true"
+          data-form-type="other"
+        >
+          <input
+            type="text"
+            name="blc-ignore-contact"
+            autoComplete="username"
+            tabIndex="-1"
+            aria-hidden="true"
+            className="autofill-decoy"
+          />
+          <input
+            type="password"
+            name="blc-ignore-secret"
+            autoComplete="new-password"
+            tabIndex="-1"
+            aria-hidden="true"
+            className="autofill-decoy"
+          />
           <div className="signup-date-context">
             Saving signups for {selectedDateLabel}
           </div>
@@ -210,20 +243,24 @@ const SignupForm = ({ onSave, isRotating, selectedDateLabel, backendEnabled = fa
               <label>First Name</label>
               <input
                 type="text"
-                name="firstName"
+                name="blc-entry-a"
+                data-field="firstName"
                 value={formData.firstName}
                 onChange={handleChange}
                 placeholder="John"
+                {...antiAutofillProps}
               />
             </div>
             <div className="form-group">
               <label>Last Name</label>
               <input
                 type="text"
-                name="lastName"
+                name="blc-entry-b"
+                data-field="lastName"
                 value={formData.lastName}
                 onChange={handleChange}
                 placeholder="Doe"
+                {...antiAutofillProps}
               />
             </div>
           </div>
@@ -234,10 +271,15 @@ const SignupForm = ({ onSave, isRotating, selectedDateLabel, backendEnabled = fa
               <label>Phone Number</label>
               <div className="phone-group">
                 <select
-                  name="countryCode"
+                  name="blc-entry-c"
+                  data-field="countryCode"
                   value={formData.countryCode}
                   onChange={handleChange}
                   className="country-code"
+                  autoComplete="off"
+                  data-lpignore="true"
+                  data-1p-ignore="true"
+                  data-form-type="other"
                   style={{
                     padding: '14px',
                     border: '2px solid rgba(26, 84, 144, 0.15)',
@@ -267,12 +309,15 @@ const SignupForm = ({ onSave, isRotating, selectedDateLabel, backendEnabled = fa
                   ))}
                 </select>
                 <input
-                  type="tel"
-                  name="phone"
+                  type="text"
+                  inputMode="tel"
+                  name="blc-entry-d"
+                  data-field="phone"
                   value={formData.phone}
                   onChange={handleChange}
                   placeholder="(555) 123-4567"
                   className="phone-input"
+                  {...antiAutofillProps}
                 />
               </div>
             </div>
@@ -285,19 +330,25 @@ const SignupForm = ({ onSave, isRotating, selectedDateLabel, backendEnabled = fa
               <div className="email-group">
                 <input
                   type="text"
-                  name="emailLocalPart"
+                  inputMode="email"
+                  name="blc-entry-e"
+                  data-field="emailLocalPart"
                   value={formData.emailLocalPart}
                   onChange={handleChange}
                   placeholder="student"
                   className="email-input"
+                  {...antiAutofillProps}
                 />
                 <span className="email-at-symbol">@</span>
                 <input
                   type="text"
-                  name="emailDomain"
+                  inputMode="email"
+                  name="blc-entry-f"
+                  data-field="emailDomain"
                   value={formData.emailDomain}
                   onChange={handleChange}
                   className="email-domain"
+                  {...antiAutofillProps}
                 />
               </div>
             </div>
