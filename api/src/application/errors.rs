@@ -19,7 +19,10 @@ impl std::fmt::Display for AppError {
             AppError::InvalidRegistration(e) => write!(f, "{e}"),
             AppError::EventFull => write!(f, "This event has reached its capacity"),
             AppError::AlreadyRegistered => {
-                write!(f, "This email is already registered for this event")
+                write!(
+                    f,
+                    "This email and phone number are already registered for this date"
+                )
             }
             AppError::EventNotFound => write!(f, "Event not found"),
             AppError::RegistrationNotFound => write!(f, "Registration not found"),
