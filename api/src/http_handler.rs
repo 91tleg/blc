@@ -1,7 +1,7 @@
 use lambda_http::{Body, Request, Response};
 
 use crate::application::ports::{EventsRepo, RegistrationsRepo};
-use crate::application::services::{AuthService, Clock};
+use crate::application::services::{AuthService, Clock, RegistrationEmailSender};
 use crate::handlers;
 use crate::infrastructure::s3::poster_storage::S3PosterStorage;
 use crate::utils::response::{cors_preflight, HttpResponse};
@@ -13,6 +13,7 @@ pub async fn dispatch(
     req: Request,
     events_repo: &dyn EventsRepo,
     registrations_repo: &dyn RegistrationsRepo,
+    email_sender: &dyn RegistrationEmailSender,
     clock: &dyn Clock,
     storage: &S3PosterStorage,
     auth: &dyn AuthService,
@@ -61,7 +62,14 @@ pub async fn dispatch(
         }
 
         ("POST", p) if p.ends_with("/registrations") => {
-            handlers::register_for_event::handle(req, events_repo, registrations_repo, clock).await
+            handlers::register_for_event::handle(
+                req,
+                events_repo,
+                registrations_repo,
+                email_sender,
+                clock,
+            )
+            .await
         }
 
         ("GET", p) if p.ends_with("/registrations") => {

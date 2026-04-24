@@ -28,7 +28,7 @@ jobs:
           workspaces: api
 
       - name: Run tests
-        run: cargo test --locked
+        run: cargo test --verbose
         working-directory: api
 
   deploy:
@@ -74,11 +74,14 @@ jobs:
         working-directory: api
 
       - name: SAM deploy
+        env:
+          REGISTRATION_EMAIL_FROM_ADDRESS: ${{ secrets.REGISTRATION_EMAIL_FROM_ADDRESS }}
         run: |
           sam deploy \
             --stack-name blc-prod \
             --region us-east-1 \
             --capabilities CAPABILITY_IAM \
+            --parameter-overrides RegistrationEmailFromAddress="${REGISTRATION_EMAIL_FROM_ADDRESS}" \
             --resolve-s3 \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset

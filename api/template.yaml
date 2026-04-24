@@ -3,6 +3,12 @@ Transform: AWS::Serverless-2016-10-31
 
 Description: BLC
 
+Parameters:
+  RegistrationEmailFromAddress:
+    Type: String
+    Default: ""
+    Description: Verified SES sender address for registration confirmations
+
 Globals:
   Function:
     Runtime: provided.al2023   # Amazon Linux 2023 required for Rust runtimes
@@ -17,6 +23,7 @@ Globals:
         REGISTRATIONS_EMAIL_GSI: email-lookup
         POSTERS_BUCKET: !Ref PostersBucket
         POSTERS_PUBLIC_BASE_URL: !Sub "https://${PostersBucket}.s3.${AWS::Region}.amazonaws.com"
+        REGISTRATION_EMAIL_FROM_ADDRESS: !Ref RegistrationEmailFromAddress
         ADMIN_PASSWORD_PARAM: /blc/prod/admin-password
         JWT_SECRET_PARAM: /blc/prod/jwt-secret
         RUST_LOG: "warn"
@@ -61,6 +68,10 @@ Resources:
               Resource:
                 - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/blc/prod/admin-password"
                 - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/blc/prod/jwt-secret"
+            - Effect: Allow
+              Action:
+                - ses:SendEmail
+              Resource: "*"
             - Effect: Allow
               Action:
                 - kms:Decrypt

@@ -6,7 +6,7 @@ use uuid::Uuid;
 use crate::application::{
     ports::{EventsRepo, RegistrationsRepo},
     register_for_event::{register_for_event, RegisterForEventInput},
-    services::Clock,
+    services::{Clock, RegistrationEmailSender},
 };
 use crate::domain::types::{EventId, RegistrationId};
 use crate::utils::{
@@ -26,6 +26,7 @@ pub async fn handle(
     req: Request,
     events_repo: &dyn EventsRepo,
     registrations_repo: &dyn RegistrationsRepo,
+    email_sender: &dyn RegistrationEmailSender,
     clock: &dyn Clock,
 ) -> HttpResponse {
     let event_id = match path_param(&req, "event_id") {
@@ -47,7 +48,7 @@ pub async fn handle(
         date_key: normalize_date_key(body.date_key),
     };
 
-    match register_for_event(events_repo, registrations_repo, clock, input).await {
+    match register_for_event(events_repo, registrations_repo, email_sender, clock, input).await {
         Ok(reg) => created(json!({
             "registration_id": reg.id.as_str(),
             "event_id":        reg.event_id.as_str(),

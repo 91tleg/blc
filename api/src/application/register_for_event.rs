@@ -3,7 +3,7 @@ use chrono::{DateTime, Duration, Utc};
 use crate::application::{
     errors::AppError,
     ports::{EventsRepo, RegistrationsRepo},
-    services::Clock,
+    services::{Clock, RegistrationEmailSender},
 };
 use crate::domain::{
     registration::Registration,
@@ -22,6 +22,7 @@ pub struct RegisterForEventInput {
 pub async fn register_for_event(
     events_repo: &dyn EventsRepo,
     registrations_repo: &dyn RegistrationsRepo,
+    email_sender: &dyn RegistrationEmailSender,
     clock: &dyn Clock,
     input: RegisterForEventInput,
 ) -> Result<Registration, AppError> {
@@ -65,6 +66,19 @@ pub async fn register_for_event(
     }
 
     registrations_repo.save(&registration).await?;
+
+    if let Err(error) = email_sender
+        .send_registration_confirmation(&registration, &event)
+        .await
+    {
+        tracing::error!(
+            error = %error,
+            event_id = %registration.event_id,
+            registration_id = %registration.id,
+            email = %registration.email,
+            "failed to send registration confirmation email"
+        );
+    }
 
     Ok(registration)
 }
