@@ -77,12 +77,23 @@ jobs:
         env:
           REGISTRATION_EMAIL_FROM_ADDRESS: ${{ secrets.REGISTRATION_EMAIL_FROM_ADDRESS }}
         run: |
-          sam deploy \
-            --stack-name blc-prod \
-            --region us-east-1 \
-            --capabilities CAPABILITY_IAM \
-            --parameter-overrides RegistrationEmailFromAddress="${REGISTRATION_EMAIL_FROM_ADDRESS}" \
-            --resolve-s3 \
-            --no-confirm-changeset \
+          set -euo pipefail
+
+          deploy_args=(
+            --stack-name blc-prod
+            --region us-east-1
+            --capabilities CAPABILITY_IAM
+            --resolve-s3
+            --no-confirm-changeset
             --no-fail-on-empty-changeset
+          )
+
+          if [[ -n "${REGISTRATION_EMAIL_FROM_ADDRESS:-}" ]]; then
+            deploy_args+=(
+              --parameter-overrides
+              "RegistrationEmailFromAddress=${REGISTRATION_EMAIL_FROM_ADDRESS}"
+            )
+          fi
+
+          sam deploy "${deploy_args[@]}"
         working-directory: api
