@@ -52,13 +52,11 @@ impl RegistrationEmailSender for SesRegistrationEmailSender {
         let message_body = Body::builder()
             .text(text_content)
             .html(html_content)
-            .build()
-            .map_err(|e| AppError::StorageError(format!("failed to build email body: {e}")))?;
+            .build();
         let message = Message::builder()
             .subject(subject_content)
             .body(message_body)
-            .build()
-            .map_err(|e| AppError::StorageError(format!("failed to build email message: {e}")))?;
+            .build();
         let destination = Destination::builder()
             .to_addresses(registration.email.clone())
             .build();
